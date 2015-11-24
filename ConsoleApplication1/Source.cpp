@@ -8,11 +8,13 @@
 
 using namespace cv;
 using namespace std;
+
 int main(int argc, char** argv)
 {
-	Mat im1 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\hello.jpg");
-	Mat im2 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\hello_defect.jpg");
-	Mat im1_gray, im2_gray;
+	Mat im1 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\chunk1.jpg");
+	Mat im2 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\chunk1b.jpg");
+
+	Mat im1_gray, im2_gray;	
 
 	cvtColor(im1, im1_gray, CV_BGR2GRAY);
 	cvtColor(im2, im2_gray, CV_BGR2GRAY);
@@ -24,15 +26,15 @@ int main(int argc, char** argv)
 
 	warp_matrix = Mat::eye(2, 3, CV_32F);
 
-	int number_of_iterations = 10;
+	int number_of_iterations = 1000;
 
 	// Specify the threshold of the increment
 	// in the correlation coefficient between two iterations
 	double termination_eps = 1e-5;
 
-
 	// Define termination criteria
 	TermCriteria criteria(TermCriteria::COUNT + TermCriteria::EPS, number_of_iterations, termination_eps);
+
 	cout << "Finding ECC" << endl;
 	// Run the ECC algorithm. The results are stored in warp_matrix.
 	findTransformECC(
@@ -58,13 +60,14 @@ int main(int argc, char** argv)
 	Mat diff = im1_gray - im2_aligned_gray;
 
 	//Calculate thresholded contour for the differences
-
-	Mat threshold_frame;
+	Mat diff_thrs;
 	vector<vector<Point>> contours;
 
-	threshold(diff.clone() , threshold_frame, 100, 255, 3);
+	threshold(diff.clone() , diff_thrs, 75, 255, 3);
 
-	findContours(threshold_frame, contours, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+	//Highlighting Diff area
+
+	findContours(diff_thrs, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
 
 	size_t count = contours.size();
 	vector<Point2i> center;
@@ -83,12 +86,13 @@ int main(int argc, char** argv)
 
 	for (int i = 0; i < count; i++)
 	{
-		cv::circle(im1, center[i], radius[i], red, 3);
+		cv::circle(im2_aligned, center[i], radius[i] + 1, red, 2);
 	}
 
-
-	imshow("Defect", im1);
-	imshow("Defect GS", diff);
+	imshow("Defect Test A - Original", im1_gray);
+	imshow("Defect Test A - Overall", im2_aligned);
+	imshow("Defect Test A - Diff Result", diff);
+	imshow("Defect Test A - Diff Thres", diff_thrs);
 
 	waitKey(0);
 
