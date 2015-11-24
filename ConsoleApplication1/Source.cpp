@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 
 	warp_matrix = Mat::eye(2, 3, CV_32F);
 
-	int number_of_iterations = 1000;
+	int number_of_iterations = 10;
 
 	// Specify the threshold of the increment
 	// in the correlation coefficient between two iterations
@@ -54,7 +54,42 @@ int main(int argc, char** argv)
 
 	cout << im2_aligned.size().width  << "x" << im2_aligned.size().height << endl;
 
-	imshow("Image 2 Aligned", im1_gray- im2_aligned_gray);
+	// Find difference in probe image with sample
+	Mat diff = im1_gray - im2_aligned_gray;
+
+	//Calculate thresholded contour for the differences
+
+	Mat threshold_frame;
+	vector<vector<Point>> contours;
+
+	threshold(diff.clone() , threshold_frame, 100, 255, 3);
+
+	findContours(threshold_frame, contours, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+
+	size_t count = contours.size();
+	vector<Point2i> center;
+	vector<int> radius;
+	Scalar red(0, 0, 255);
+
+	for (int i = 0; i<count; i++)
+	{
+		cv::Point2f c;
+		float r;
+		cv::minEnclosingCircle(contours[i], c, r);
+
+		center.push_back(c);
+		radius.push_back(r);
+	}
+
+	for (int i = 0; i < count; i++)
+	{
+		cv::circle(im1, center[i], radius[i], red, 3);
+	}
+
+
+	imshow("Defect", im1);
+	imshow("Defect GS", diff);
+
 	waitKey(0);
 
 	return 0;
