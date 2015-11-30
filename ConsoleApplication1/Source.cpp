@@ -3,47 +3,53 @@
 #include <opencv2/highgui.hpp>
 #include <iostream>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/features2d.hpp>
 #include <opencv2/opencv.hpp>
-#include <chrono>
-#include <thread>
+#include <opencv2/xfeatures2d/nonfree.hpp>
 
 using namespace cv;
 void showSideBySide(Mat &im1, Mat &im2);
+void showSideBySide(String name, Mat &im1, Mat &im2);
 
-/*
-	Bug: Algorithm assumes that
-	im2 has more content than im1,
-	so when thresholded the subtraction of the opposite
-	it will not pick up the threshold
+//Mask treshold
+const float MASK_THRES = 49.0f;
+//Error elimination (eliminate small)
+const float MIN_ERR_RADIUS = 4.0f;
+//Alignment accuracy
+const int number_of_iterations = 1555;
+//Other control variables
+const unsigned int CAM_NUMBER = 1;
+const bool use_feed = true;
 
-	Bug2: Thresholding too strong! it destroy some diff
-*/
+
 int main(int argc, char** argv)
 {
-
-	const float thres = 33.0f;
-	const float sensitivity = 4.0f;
-	const int number_of_iterations = 255;
-
-	const bool use_feed = false;
-
 	Mat im1, im2;
 	std::cout << "Opening capture stream.." << std::endl;
 	if(use_feed){
 		VideoCapture cap;
 
-		if (!cap.open(0)) {
+		if (!cap.open(CAM_NUMBER)) {
 			std::cout << "Unable to open cam stream" << std::endl;
 			return 0;
 		}
 		int j = 0;
 		for (;;)
 		{
-			Mat frame;
+			Mat frame, shframe;
 			cap >> frame;
 			if (frame.empty()) break; // end of video stream
-			imshow("Streaming..", frame);
+			
+			if (j == 0) {
+				shframe = frame;
+				imshow("Streaming..", shframe);
+			}
+			else {
+				absdiff(frame, im1, shframe);
+				showSideBySide("Streaming..", shframe, frame);
+			}
+
+			
+
 			if (waitKey(1) == 27) {
 				if (j == 0) {
 					std::cout << "IM1 Cap" << std::endl;
@@ -64,22 +70,25 @@ int main(int argc, char** argv)
 		 im1 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\hello.jpg");
 		 im2 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\hello_defect.jpg");
 		 //im1 = imread("C:\\Users\\ecegr\\Desktop\\PGarten\\A.png");
-	//	 im2 = imread("C:\\Users\\ecegr\\Desktop\\PGarten\\B.png");
+		 //im2 = imread("C:\\Users\\ecegr\\Desktop\\PGarten\\B.png");
+
 	}
 	
-	if (im1.empty()) {
+	if (im1.empty() || im2.empty()) {
 		std::cout << "File not found" << std::endl;
 		return 0;
 	}
-	
-	Mat im1_gray, im2_gray;	
 
+	Mat im1_gray, im2_gray;
 	cvtColor(im1, im1_gray, CV_BGR2GRAY);
 	cvtColor(im2, im2_gray, CV_BGR2GRAY);
 
-	// Alignment correction
+	//std::cout << "Denoising.." << std::endl;
+	//fastNlMeansDenoising(im1_gray, im1_gray, 3.0, 7, 21);
+	//fastNlMeansDenoising(im2_gray, im2_gray, 3.0, 7, 21);
 
-	const int warp_mode = MOTION_EUCLIDEAN;
+	// Alignment correction
+	const int warp_mode = MOTION_AFFINE;
 
 	// Set a 2x3 or 3x3 warp matrix depending on the motion model.
 	Mat warp_matrix;
@@ -112,7 +121,6 @@ int main(int argc, char** argv)
 
 	cvtColor(im2_aligned, im2_aligned_gray, CV_BGR2GRAY);
 
-
 	// Find difference in probe image with sample
 
 	Mat diff;
@@ -129,7 +137,7 @@ int main(int argc, char** argv)
 		{
 			Scalar pix = diff.at<uchar>(j, i);
 			
-			if (pix.val[0] > thres)
+			if (pix.val[0] > MASK_THRES)
 			{
 				fmask.at<uchar>(j, i) = 255;
 			}
@@ -152,7 +160,7 @@ int main(int argc, char** argv)
 		float r = 0.00f;
 		cv::minEnclosingCircle(contours[i], c, r);
 
-		if (r > sensitivity) {
+		if (r > MIN_ERR_RADIUS) {
 			center.push_back(c);
 			radius.push_back(r);
 		}
@@ -163,11 +171,10 @@ int main(int argc, char** argv)
 		cv::circle(im2_aligned, center[i], radius[i] + 1, red, 2);
 	}
 
-	imshow("Defect Test A - Original", im1);
-	imshow("Defect Test A - Im B with marking", im2_aligned);
-	//showSideBySide(im1, im2_aligned);
+	//imshow("Defect Test A - Original", im1);
+	//imshow("Defect Test A - Im B with marking", im2_aligned);
+	showSideBySide(im1, im2_aligned);
 	imshow("Defect Test A - Diff Before Thres", diff);
-	
 
 	waitKey(0);
 
@@ -175,6 +182,10 @@ int main(int argc, char** argv)
 }
 
 void showSideBySide(Mat &im1, Mat &im2) {
+	showSideBySide("Defect", im1, im2);
+}
+
+void showSideBySide(String name, Mat &im1, Mat &im2) {
 	Size sz1 = im1.size();
 	Size sz2 = im2.size();
 	Mat im3(sz1.height, sz1.width + sz2.width, CV_8UC3);
@@ -182,5 +193,5 @@ void showSideBySide(Mat &im1, Mat &im2) {
 	im1.copyTo(left);
 	Mat right(im3, Rect(sz1.width, 0, sz2.width, sz2.height));
 	im2.copyTo(right);
-	imshow("Defect", im3);
+	imshow(name, im3);
 }
