@@ -9,13 +9,15 @@
 using namespace cv;
 void showSideBySide(Mat &im1, Mat &im2);
 void showSideBySide(String name, Mat &im1, Mat &im2);
+int alignmentScore(Mat &ab);
 
 //Mask treshold
 const float MASK_THRES = 49.0f;
 //Error elimination (eliminate small)
 const float MIN_ERR_RADIUS = 4.0f;
 //Alignment accuracy
-const int number_of_iterations = 1555;
+const int number_of_iterations = 3555;
+const double AAE_DIM_PERCENTILE = 0.05; //Alignment Artifact Elimination Dimension Percentile (how far from the corner do we start disallowing center of marker)
 //Other control variables
 const unsigned int CAM_NUMBER = 1;
 const bool use_feed = true;
@@ -45,6 +47,9 @@ int main(int argc, char** argv)
 			}
 			else {
 				absdiff(frame, im1, shframe);
+				int score = alignmentScore(shframe);
+				std::cout << score << " White Count (Lower is better, minimize this)" << std::endl;
+
 				showSideBySide("Streaming..", shframe, frame);
 			}
 
@@ -159,8 +164,14 @@ int main(int argc, char** argv)
 		cv::Point2f c;
 		float r = 0.00f;
 		cv::minEnclosingCircle(contours[i], c, r);
-
-		if (r > MIN_ERR_RADIUS) {
+		
+		//Discard alignment artifacts, which is circles that are as large as the image and has radius in the corner
+		bool IN_CORNER = (c.x < AAE_DIM_PERCENTILE*im1.size().width ||
+			c.x > (1- AAE_DIM_PERCENTILE)*im1.size().width || c.y < im1.size().height*AAE_DIM_PERCENTILE || 
+			c.y > im1.size().height*(1- AAE_DIM_PERCENTILE));
+		bool ALM_ARTIFACT = (r >= im1.size().height / 2 || r >= im1.size().width / 2 || IN_CORNER );
+		//Don't include useless markers (false alarm)
+		if (r > MIN_ERR_RADIUS && !ALM_ARTIFACT) {
 			center.push_back(c);
 			radius.push_back(r);
 		}
@@ -171,8 +182,6 @@ int main(int argc, char** argv)
 		cv::circle(im2_aligned, center[i], radius[i] + 1, red, 2);
 	}
 
-	//imshow("Defect Test A - Original", im1);
-	//imshow("Defect Test A - Im B with marking", im2_aligned);
 	showSideBySide(im1, im2_aligned);
 	imshow("Defect Test A - Diff Before Thres", diff);
 
@@ -194,4 +203,10 @@ void showSideBySide(String name, Mat &im1, Mat &im2) {
 	Mat right(im3, Rect(sz1.width, 0, sz2.width, sz2.height));
 	im2.copyTo(right);
 	imshow(name, im3);
+}
+
+int alignmentScore(Mat &ab) {
+	//cvtColor(ab.clone(), ab, CV_BGR2GRAY);
+	int whcount = countNonZero(ab > 127);
+	return whcount;
 }
