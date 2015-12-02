@@ -12,9 +12,9 @@ void showSideBySide(String name, Mat &im1, Mat &im2);
 int alignmentScore(Mat &ab);
 
 //Mask treshold
-const float MASK_THRES = 49.0f;
+const float MASK_THRES = 10.0f;
 //Error elimination (eliminate small)
-const float MIN_ERR_RADIUS = 4.0f;
+const float MIN_ERR_RADIUS = 0.0f;
 //Alignment accuracy
 const int number_of_iterations = 3555;
 const double AAE_DIM_PERCENTILE = 0.05; //Alignment Artifact Elimination Dimension Percentile (how far from the corner do we start disallowing center of marker)
@@ -76,7 +76,6 @@ int main(int argc, char** argv)
 		 im2 = imread("C:\\Users\\ecegr\\Dropbox\\CV_Exp\\images\\hello_defect.jpg");
 		 //im1 = imread("C:\\Users\\ecegr\\Desktop\\PGarten\\A.png");
 		 //im2 = imread("C:\\Users\\ecegr\\Desktop\\PGarten\\B.png");
-
 	}
 	
 	if (im1.empty() || im2.empty()) {
@@ -117,6 +116,7 @@ int main(int argc, char** argv)
 		criteria
 	);
 
+
 	// Storage for warped image.
 	Mat im2_aligned;
 	Mat im2_aligned_gray;
@@ -149,10 +149,18 @@ int main(int argc, char** argv)
 			
 		}
 
-	imshow("FMASK", fmask);
 	//Highlighting Diff area
-	std::cout << "Marking.." << std::endl;
+	
+
+	//Mat fmask_canny;
+	std::cout << "Morphing.." << std::endl;
+	//Canny(fmask, fmask_canny, 20, 20 * 3, 3);
+	erode(fmask, fmask, Mat(), Point(-1,1),1,1, 1);
+
+	std::cout << "Finding Contours.." << std::endl;
 	findContours(fmask, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+	imshow("FMASK", fmask);
+
 
 	size_t count = contours.size();
 	std::vector<Point2i> center;
@@ -182,7 +190,7 @@ int main(int argc, char** argv)
 		cv::circle(im2_aligned, center[i], radius[i] + 1, red, 2);
 	}
 
-	showSideBySide(im1, im2_aligned);
+	showSideBySide(im2_aligned, im1);
 	imshow("Defect Test A - Diff Before Thres", diff);
 
 	waitKey(0);
