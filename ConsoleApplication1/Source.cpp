@@ -1,10 +1,10 @@
+#include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
-#include <iostream>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv2/features2d/features2d.hpp>
 
 using namespace cv;
 void showSideBySide(Mat &im1, Mat &im2);
@@ -12,19 +12,22 @@ void showSideBySide(String name, Mat &im1, Mat &im2);
 int alignmentScore(Mat &ab);
 
 //Mask treshold
-const float MASK_THRES = 10.0f;
+const float MASK_THRES = 32.0f;
 //Error elimination (eliminate small)
 const float MIN_ERR_RADIUS = 0.0f;
 //Alignment accuracy
-const int number_of_iterations = 3555;
-const double AAE_DIM_PERCENTILE = 0.05; //Alignment Artifact Elimination Dimension Percentile (how far from the corner do we start disallowing center of marker)
+const int number_of_iterations = 5000;
+const double AAE_DIM_PERCENTILE = 0.01; //Alignment Artifact Elimination Dimension Percentile (how far from the corner do we start disallowing center of marker)
 //Other control variables
 const unsigned int CAM_NUMBER = 1;
 const bool use_feed = true;
 
-
+/*
+	Todo: dont bring up anything smaller than a few pixel in FMASK
+*/
 int main(int argc, char** argv)
 {
+
 	Mat im1, im2;
 	std::cout << "Opening capture stream.." << std::endl;
 	if(use_feed){
@@ -35,24 +38,24 @@ int main(int argc, char** argv)
 			return 0;
 		}
 		int j = 0;
+
+
 		for (;;)
 		{
 			Mat frame, shframe;
 			cap >> frame;
 			if (frame.empty()) break; // end of video stream
-			
+
 			if (j == 0) {
 				shframe = frame;
 				imshow("Streaming..", shframe);
-			}
-			else {
+			} else {
 				absdiff(frame, im1, shframe);
 				int score = alignmentScore(shframe);
 				std::cout << score << " White Count (Lower is better, minimize this)" << std::endl;
 
 				showSideBySide("Streaming..", shframe, frame);
 			}
-
 			
 
 			if (waitKey(1) == 27) {
@@ -87,9 +90,10 @@ int main(int argc, char** argv)
 	cvtColor(im1, im1_gray, CV_BGR2GRAY);
 	cvtColor(im2, im2_gray, CV_BGR2GRAY);
 
-	//std::cout << "Denoising.." << std::endl;
-	//fastNlMeansDenoising(im1_gray, im1_gray, 3.0, 7, 21);
-	//fastNlMeansDenoising(im2_gray, im2_gray, 3.0, 7, 21);
+/*	std::cout << "Denoising.." << std::endl;
+	fastNlMeansDenoising(im1_gray, im1_gray, 3.0, 7, 21);
+	fastNlMeansDenoising(im2_gray, im2_gray, 3.0, 7, 21);
+	*/
 
 	// Alignment correction
 	const int warp_mode = MOTION_AFFINE;
@@ -131,12 +135,17 @@ int main(int argc, char** argv)
 	Mat diff;
 	absdiff(im1_gray, im2_aligned_gray, diff);
 
+	imshow("Raw differences", diff);
+
+	erode(diff, diff, Mat());
+	dilate(diff, diff, Mat());
+	imshow("After opening", diff);
+
+
 	//Calculate thresholded contour for the differences
-	//Mat diff_thrs;
 	std::vector<std::vector<Point>> contours;
-	
-	//threshold(diff, diff_thrs, 100, 255, 0);
 	Mat fmask = Mat::zeros(diff.rows, diff.cols, CV_8UC1);
+	
 	for (int j = 0; j<diff.rows; ++j)
 		for (int i = 0; i<diff.cols; ++i)
 		{
@@ -147,51 +156,58 @@ int main(int argc, char** argv)
 				fmask.at<uchar>(j, i) = 255;
 			}
 			
-		}
+	}
 
-	//Highlighting Diff area
-	
 
-	//Mat fmask_canny;
-	std::cout << "Morphing.." << std::endl;
-	//Canny(fmask, fmask_canny, 20, 20 * 3, 3);
-	erode(fmask, fmask, Mat(), Point(-1,1),1,1, 1);
+//	adaptiveThreshold(diff, fmask, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 33, 5);
+
+
+	imshow("After thresholding", fmask);
+
 
 	std::cout << "Finding Contours.." << std::endl;
 	findContours(fmask, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
-	imshow("FMASK", fmask);
-
 
 	size_t count = contours.size();
 	std::vector<Point2i> center;
 	std::vector<int> radius;
 	Scalar red(0, 0, 255);
 
+	
+
 	for (int i = 0; i<count; i++)
 	{
-		cv::Point2f c;
-		float r = 0.00f;
-		cv::minEnclosingCircle(contours[i], c, r);
+		//cv::Point2f c;
+		//float r = 0.00f;
+		//cv::minEnclosingCircle(contours[i], c, r);
+
+		//boundingRect(contours[i]);
+
+		double A = contourArea(contours[i]);
 		
+		std::cout << A << " area" << std::endl;
+		drawContours(im2_aligned, contours, i, Scalar(0, 255, 0), 1, 8);
+
 		//Discard alignment artifacts, which is circles that are as large as the image and has radius in the corner
-		bool IN_CORNER = (c.x < AAE_DIM_PERCENTILE*im1.size().width ||
+		/*bool IN_CORNER = (c.x < AAE_DIM_PERCENTILE*im1.size().width ||
 			c.x > (1- AAE_DIM_PERCENTILE)*im1.size().width || c.y < im1.size().height*AAE_DIM_PERCENTILE || 
 			c.y > im1.size().height*(1- AAE_DIM_PERCENTILE));
-		bool ALM_ARTIFACT = (r >= im1.size().height / 2 || r >= im1.size().width / 2 || IN_CORNER );
-		//Don't include useless markers (false alarm)
-		if (r > MIN_ERR_RADIUS && !ALM_ARTIFACT) {
-			center.push_back(c);
-			radius.push_back(r);
-		}
+		bool ALM_ARTIFACT = (r >= im1.size().height / 2 || r >= im1.size().width / 2 );*/
+		
+		/*if (IN_CORNER || ALM_ARTIFACT) continue;
+		if (contours[i].size() < 10) continue;
+
+		center.push_back(c);
+		radius.push_back(r);*/
+
 	}
 
-	for (int i = 0; i < center.size(); i++)
+	/*for (int i = 0; i < center.size(); i++)
 	{
 		cv::circle(im2_aligned, center[i], radius[i] + 1, red, 2);
-	}
+	}*/
 
 	showSideBySide(im2_aligned, im1);
-	imshow("Defect Test A - Diff Before Thres", diff);
 
 	waitKey(0);
 
