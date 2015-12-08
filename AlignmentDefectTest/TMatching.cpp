@@ -5,9 +5,10 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <ctime>
 
-using namespace cv;
 
 const int CAM_NUMBER = 0;
+
+using namespace cv;
 
 void diag(String c) {
 	std::cout << c << std::endl;
@@ -35,6 +36,8 @@ int main(int argc, char** argv)
 	bool DRAW_MODE = false;
 	bool ROI_PROC = false;
 	bool TEMPL_PROC = false;
+
+	int mode_scale_idx = 0;
 
 	Mat templ;
 
@@ -91,13 +94,13 @@ int main(int argc, char** argv)
 		}
 		else if (b == 105) {
 			//i
-			rect_pt.width -= rect_incr;
-			rect_pt.height -= rect_incr;
+			if (mode_scale_idx == 0 || mode_scale_idx  == 1) rect_pt.width -= rect_incr;
+			if (mode_scale_idx == 0 || mode_scale_idx == 2)  rect_pt.height -= rect_incr;
 		}
 		else if (b == 111) {
 			//o
-			rect_pt.width += rect_incr;
-			rect_pt.height += rect_incr;
+			if (mode_scale_idx == 0 || mode_scale_idx == 1)rect_pt.width += rect_incr;
+			if (mode_scale_idx == 0 || mode_scale_idx == 2) rect_pt.height += rect_incr;
 		}
 		else if (b == 45) {
 			//minus
@@ -107,7 +110,15 @@ int main(int argc, char** argv)
 			//plus
 			rect_incr += 1;
 		}
-
+		else if (b == 109) {
+			//m
+			if (mode_scale_idx == 2) {
+				mode_scale_idx = 0;
+			}
+			else {
+				mode_scale_idx++;
+			}
+		}
 
 		//Flag Processing
 
@@ -123,10 +134,13 @@ int main(int argc, char** argv)
 
 			TEMPL_PROC = true;
 			ROI_PROC = false;
-			destroyAllWindows();
+			cv::destroyAllWindows();
 		}
 
-		Point minLoc; Point maxLoc;
+		Point minLoc; Point maxLoc; double maxVal; double minVal;
+		Scalar green(0, 255, 0);
+		Scalar orange(30, 255, 255);
+
 		if (TEMPL_PROC) {
 			imshow("roi", templ);
 			Mat tmp, frame_grey;
@@ -134,14 +148,24 @@ int main(int argc, char** argv)
 
 			matchTemplate(frame, templ, tmp, CV_TM_CCOEFF_NORMED);
 			
-			threshold(tmp, tmp, 0.9, 1., CV_THRESH_TOZERO);
-			double minVal; double maxVal; 
+			threshold(tmp, tmp, 0.7, 1., CV_THRESH_TOZERO);
+			
 
 			minMaxLoc(tmp, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
 			if (maxLoc.x != 0 && maxLoc.y != 0) {
-				rectangle(frame, maxLoc, Point(maxLoc.x + templ.cols, maxLoc.y + templ.rows), Scalar(0, 255, 0), 1, 8, 0);
-				putText(frame, "OK", Point(10, frame.size().height - 50), FONT_HERSHEY_PLAIN, 3, Scalar(0, 255, 0), 2, 8);
+				Scalar match_color = green;
+
+				if (maxVal < 0.9) {
+					match_color = orange;
+				}
+
+				rectangle(frame, maxLoc, Point(maxLoc.x + templ.cols, maxLoc.y + templ.rows), match_color, 1, 8, 0);
+				putText(frame, "OK", Point(10, frame.size().height - 50), FONT_HERSHEY_PLAIN, 3, green, 2, 8);
+				
+				putText(frame, std::to_string(maxVal),
+					Point(maxLoc.x, maxLoc.y + templ.rows + 15), FONT_HERSHEY_PLAIN, 0.75, match_color, 1, 8);
+
 			}
 			else {
 				putText(frame, "NG", Point(10, frame.size().height - 50), FONT_HERSHEY_PLAIN, 3, Scalar(0, 0, 255), 2 , 8);
@@ -153,10 +177,15 @@ int main(int argc, char** argv)
 
 		if (DRAW_MODE) {
 			rectangle(frame, rect_pt, Scalar(0, 0, 255), 1);
+			putText(frame, mode_scale_idx == 0 ? "UNIFORM" : (mode_scale_idx == 1 ? "WIDTH ADJUST" : "HEIGHT ADJUST"),
+				Point(rect_pt.x, rect_pt.y + rect_pt.height + 15), FONT_HERSHEY_PLAIN, 0.7, Scalar(0, 0, 255), 1, 8);
 		}
 
-		putText(frame, "INCR " + std::to_string(rect_incr), Point(10, 50), FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0), 1, 8);
-		putText(frame, "fps " + std::to_string(fps), Point(10, frame.size().height - 10), FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0), 1, 8);
+		putText(frame, "ADJ " + std::to_string(rect_incr),
+			Point(10, 50), FONT_HERSHEY_PLAIN, 1, Scalar(255, 0, 0), 1, 8);
+		
+
+		putText(frame, "fps " + std::to_string((int)fps), Point(10, frame.size().height - 10), FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0), 1, 8);
 
 		putText(frame, "Match " + std::to_string(maxLoc.x) + "," + std::to_string(maxLoc.y), Point(10, 100), FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0), 1, 8);
 		putText(frame, "ROI " + std::to_string(roiLoc.x) + "," + std::to_string(roiLoc.y), Point(10, 120), FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0), 1, 8);
