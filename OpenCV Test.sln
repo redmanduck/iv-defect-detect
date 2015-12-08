@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AlignmentDefectTest", "Alig
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotionCaptureTest", "MotionCaptureTest\MotionCaptureTest.vcxproj", "{C3135E94-6FA6-48F8-8127-A4215382B84E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Classifier", "Classifier\Classifier.vcxproj", "{8227241B-5D38-42FF-A2A5-23C3432E357D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -36,6 +38,14 @@ Global
 		{C3135E94-6FA6-48F8-8127-A4215382B84E}.Release|x64.Build.0 = Debug|Win32
 		{C3135E94-6FA6-48F8-8127-A4215382B84E}.Release|x86.ActiveCfg = Debug|Win32
 		{C3135E94-6FA6-48F8-8127-A4215382B84E}.Release|x86.Build.0 = Debug|Win32
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Debug|x64.ActiveCfg = Debug|x64
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Debug|x64.Build.0 = Debug|x64
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Debug|x86.ActiveCfg = Debug|Win32
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Debug|x86.Build.0 = Debug|Win32
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Release|x64.ActiveCfg = Release|x64
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Release|x64.Build.0 = Release|x64
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Release|x86.ActiveCfg = Release|Win32
+		{8227241B-5D38-42FF-A2A5-23C3432E357D}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

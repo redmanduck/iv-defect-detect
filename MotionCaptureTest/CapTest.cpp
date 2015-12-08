@@ -8,7 +8,7 @@
 
 using namespace cv;
 
-const int CAM_NUMBER = 1;
+const int CAM_NUMBER = 0;
 
 int main(int argc, char** argv)
 {
@@ -23,20 +23,27 @@ int main(int argc, char** argv)
 	double duration;
 	
 	start = std::clock();
+	int g = 0;
 
 	for (;;)
 	{
 		Mat frame;
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 
-		if ((int)duration == 3) {
+		
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		cap >> frame;
+
+		if ((int)duration == 1) {
 			std::cout << "Capturing.." << std::endl;
-			cap >> frame;
-			imshow("Frame", frame);
+			imshow("Frame" + std::to_string(g++), frame);
+
 			start = std::clock();
 		}
 
-		if (waitKey(1) == 13) {
+		imshow("FrameX", frame);
+
+		if (waitKey(1) == 27) {
 			break;
 		}
 	}
